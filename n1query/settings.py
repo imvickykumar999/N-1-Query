@@ -6,6 +6,27 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-n1-query-learning-pro
 DEBUG = os.environ.get("DEBUG", "True").lower() in ("true", "1", "t")
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",") if os.environ.get("ALLOWED_HOSTS") else ["*"]
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://n-1-query.onrender.com",
+    "https://*.onrender.com",
+    "http://127.0.0.1:8000",
+    "http://localhost:8000",
+]
+
+if os.environ.get("RENDER_EXTERNAL_HOSTNAME"):
+    render_host = os.environ["RENDER_EXTERNAL_HOSTNAME"]
+    render_origin = f"https://{render_host}"
+    if render_origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(render_origin)
+
+if os.environ.get("CSRF_TRUSTED_ORIGINS"):
+    for origin in os.environ.get("CSRF_TRUSTED_ORIGINS").split(","):
+        origin = origin.strip()
+        if origin and origin not in CSRF_TRUSTED_ORIGINS:
+            CSRF_TRUSTED_ORIGINS.append(origin)
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 INSTALLED_APPS = [
     "jazzmin",
     "django.contrib.admin",
