@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="An interactive guide to fixing Django N+1 queries with select_related and prefetch_related.">
+  <title>N+1 Query Lab | Django ORM</title>
+  <style>
+    :root {
+      --ink: #202421;
+      --muted: #6d756f;
+      --paper: #f6f4ee;
+      --panel: #fffdf8;
+      --line: #dcded5;
+      --green: #276749;
+      --green-soft: #e1f0e6;
+      --orange: #c65d2e;
+      --orange-soft: #f8e4d9;
+      --yellow: #f3c969;
+      --shadow: 0 18px 50px rgba(32, 36, 33, 0.08);
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      --sans: "Trebuchet MS", "Segoe UI", sans-serif;
+      --display: Georgia, "Times New Roman", serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: var(--sans);
+      line-height: 1.55;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .35;
+      background-image: radial-gradient(#d4d7ca 0.7px, transparent 0.7px);
+      background-size: 18px 18px;
+      mask-image: linear-gradient(to bottom, black, transparent 75%);
+    }
+    a { color: inherit; }
+    button { font: inherit; }
+    .wrap { width: min(1160px, calc(100% - 40px)); margin: 0 auto; }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background: rgba(246, 244, 238, .9);
+      border-bottom: 1px solid rgba(220, 222, 213, .8);
+      backdrop-filter: blur(12px);
+    }
+    .topbar-inner { display: flex; justify-content: space-between; align-items: center; min-height: 68px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: .02em; text-decoration: none; }
+    .brand-mark { display: grid; place-items: center; width: 34px; height: 34px; color: var(--paper); background: var(--green); border-radius: 9px 9px 9px 2px; font-family: var(--mono); font-size: 13px; }
+    nav { display: flex; gap: 22px; color: var(--muted); font-size: 14px; }
+    nav a { text-decoration: none; }
+    nav a:hover { color: var(--green); }
+
+    .hero { position: relative; padding: 84px 0 74px; overflow: hidden; }
+    .hero::after { content: "N+1"; position: absolute; right: -24px; top: -28px; color: rgba(198, 93, 46, .08); font: 900 240px/.9 var(--display); pointer-events: none; }
+    .eyebrow { display: inline-flex; align-items: center; gap: 8px; color: var(--orange); font: 700 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+    .eyebrow::before { content: ""; width: 30px; height: 2px; background: var(--orange); }
+    h1, h2, h3 { margin: 0; line-height: 1.05; }
+    h1 { max-width: 750px; margin-top: 18px; font: 700 clamp(44px, 7vw, 82px)/.98 var(--display); letter-spacing: -.04em; }
+    .hero-copy { max-width: 650px; margin: 25px 0 0; color: var(--muted); font-size: 18px; }
+    .hero-actions { display: flex; gap: 12px; margin-top: 34px; flex-wrap: wrap; }
+    .button { display: inline-flex; align-items: center; gap: 9px; padding: 12px 17px; border: 1px solid var(--green); border-radius: 7px; color: white; background: var(--green); cursor: pointer; font-weight: 700; text-decoration: none; }
+    .button:hover { background: #1e573d; }
+    .button.secondary { color: var(--ink); background: transparent; border-color: var(--line); }
+    .button.secondary:hover { border-color: var(--green); color: var(--green); background: var(--green-soft); }
+    .hero-note { display: flex; align-items: center; gap: 10px; margin-top: 22px; color: var(--muted); font-size: 13px; }
+    .pulse { width: 8px; height: 8px; background: var(--orange); border-radius: 50%; box-shadow: 0 0 0 5px var(--orange-soft); }
+
+    section { padding: 78px 0; position: relative; }
+    .section-heading { display: flex; justify-content: space-between; align-items: end; gap: 30px; margin-bottom: 28px; }
+    h2 { font: 700 clamp(30px, 4vw, 46px) var(--display); letter-spacing: -.03em; }
+    .section-heading p { max-width: 440px; margin: 0; color: var(--muted); }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .card { padding: 24px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255, 253, 248, .85); box-shadow: var(--shadow); }
+    .card h3 { margin-bottom: 11px; font-size: 21px; }
+    .card p { margin: 0; color: var(--muted); font-size: 15px; }
+    .card .tag { display: inline-block; margin-bottom: 20px; padding: 4px 8px; color: var(--green); background: var(--green-soft); border-radius: 4px; font: 700 11px var(--mono); }
+    .warning .tag { color: var(--orange); background: var(--orange-soft); }
+    .diagram { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; margin-top: 30px; }
+    .entity { padding: 20px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+    .entity strong { display: block; margin-bottom: 10px; color: var(--green); font: 700 18px var(--mono); }
+    .entity code { display: block; color: var(--muted); font: 13px/1.8 var(--mono); }
+    .arrow { color: var(--orange); font-size: 25px; }
+
+    .lab { background: #202b25; color: #f7f3e9; }
+    .lab .section-heading p { color: #b4c2b9; }
+    .lab h2 { color: #f7f3e9; }
+    .lab-shell { display: grid; grid-template-columns: 250px 1fr; gap: 20px; }
+    .tabs { display: grid; align-content: start; gap: 7px; }
+    .tab { padding: 15px; color: #b4c2b9; background: transparent; border: 1px solid transparent; border-radius: 7px; cursor: pointer; text-align: left; }
+    .tab:hover, .tab.active { color: #f7f3e9; background: #2c3b32; border-color: #45604e; }
+    .tab strong { display: block; margin-bottom: 3px; }
+    .tab small { font-size: 12px; }
+    .lab-panel { min-width: 0; padding: 27px; background: #f7f3e9; color: var(--ink); border-radius: 10px; }
+    .panel-label { color: var(--orange); font: 700 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+    .lab-panel h3 { margin: 8px 0 22px; font: 700 29px var(--display); }
+    .code { margin: 0; overflow: auto; padding: 19px; color: #e6f1e6; background: #17211b; border-radius: 7px; font: 13px/1.7 var(--mono); }
+    .kw { color: #e5b869; } .fn { color: #82c6a0; } .str { color: #e2a17b; } .comment { color: #718278; }
+    .query-row { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin-top: 17px; padding: 13px 15px; border-left: 4px solid var(--orange); background: #fffaf0; }
+    .query-count { color: var(--orange); font: 700 22px var(--mono); white-space: nowrap; }
+    .query-count small { color: var(--muted); font: 11px var(--sans); }
+    .results { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 18px; }
+    .result { padding: 11px 13px; border: 1px solid var(--line); background: white; border-radius: 5px; font-size: 13px; }
+    .result span { display: block; color: var(--muted); font-size: 11px; }
+    .live-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 22px; }
+    .live-item { padding: 14px; border-left: 3px solid var(--green); background: var(--panel); }
+    .live-item strong { display: block; }
+    .live-item span { color: var(--muted); font-size: 13px; }
+    .live-meta { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 16px; }
+    .live-meta span { padding: 5px 9px; color: var(--green); background: var(--green-soft); border-radius: 4px; font: 700 12px var(--mono); }
+
+    .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .compare .card { box-shadow: none; }
+    .compare .good { border-top: 4px solid var(--green); }
+    .compare .bad { border-top: 4px solid var(--orange); }
+    .metric { display: flex; justify-content: space-between; align-items: baseline; margin-top: 22px; padding-top: 17px; border-top: 1px solid var(--line); }
+    .metric b { font: 700 28px var(--mono); }
+    .bad .metric b { color: var(--orange); }
+    .good .metric b { color: var(--green); }
+    .bar { height: 7px; margin-top: 10px; overflow: hidden; background: #ece9df; border-radius: 4px; }
+    .bar i { display: block; height: 100%; background: var(--orange); border-radius: inherit; }
+    .good .bar i { background: var(--green); }
+    .callout { margin-top: 18px; padding: 19px; color: #59471e; border: 1px solid #ebd99e; border-radius: 8px; background: #fff7d9; }
+    .callout strong { color: #7b5b13; }
+
+    footer { padding: 34px 0; color: var(--muted); border-top: 1px solid var(--line); font-size: 13px; }
+    footer code { color: var(--green); font-family: var(--mono); }
+    [data-reveal] { animation: rise .7s both; }
+    @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    @media (max-width: 760px) {
+      .wrap { width: min(100% - 28px, 600px); }
+      nav { display: none; }
+      .hero { padding: 58px 0; }
+      .hero::after { font-size: 140px; top: 20px; }
+      section { padding: 55px 0; }
+      .section-heading, .lab-shell { display: block; }
+      .section-heading p { margin-top: 15px; }
+      .grid, .compare { grid-template-columns: 1fr; }
+      .tabs { display: flex; overflow-x: auto; margin-bottom: 12px; padding-bottom: 5px; }
+      .tab { min-width: 180px; }
+      .diagram { grid-template-columns: 1fr; }
+      .arrow { text-align: center; transform: rotate(90deg); }
+      .lab-panel { padding: 20px; }
+      .results, .live-list { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="#top"><span class="brand-mark">ORM</span> N+1 Query Lab</a>
+      <nav aria-label="Main navigation"><a href="#mental-model">Mental model</a><a href="#lab">Interactive lab</a><a href="#compare">Compare</a></nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="wrap" data-reveal>
+        <span class="eyebrow">Django ORM field guide</span>
+        <h1>Make every relationship count.</h1>
+        <p class="hero-copy">The N+1 query problem hides inside ordinary Python loops. See exactly when Django hits the database, then choose the right loading strategy for Books, Authors, and every relationship around them.</p>
+        <div class="hero-actions"><a class="button" href="#lab">Open the query lab <span aria-hidden="true">-&gt;</span></a><a class="button secondary" href="#mental-model">Learn the mental model</a></div>
+        <div class="hero-note"><span class="pulse"></span> Database traffic is simulated below. The Python examples are ready to paste into a Django view.</div>
+      </div>
+    </section>
+
+    <section id="mental-model">
+      <div class="wrap">
+        <div class="section-heading"><div><span class="eyebrow">Start here</span><h2>The loop is the clue.</h2></div><p>Fetching a collection is one query. Touching an unfetched relationship for every item adds one query per item.</p></div>
+        <div class="grid">
+          <article class="card warning"><span class="tag">01 / The trap</span><h3>One book, one author query</h3><p><code>Book.objects.all()</code> loads Books. Accessing <code>book.author.name</code> in a loop can then query the Author table once for each Book.</p></article>
+          <article class="card"><span class="tag">02 / The decision</span><h3>Follow the relationship shape</h3><p>Use <code>select_related()</code> for one-to-one joins. Use <code>prefetch_related()</code> when the related side can return many rows.</p></article>
+          <article class="card"><span class="tag">03 / The payoff</span><h3>Make query count predictable</h3><p>With the right eager loader, the number of database round trips stays steady as your result set grows.</p></article>
+        </div>
+        <div class="diagram" aria-label="Book to Author relationship diagram">
+          <div class="entity"><strong>Book</strong><code>title<br>author_id (ForeignKey)<br>co_authors (ManyToMany)</code></div><div class="arrow" aria-hidden="true">-&gt;</div><div class="entity"><strong>Author</strong><code>name<br>books (reverse relation)<br>profile (OneToOne)</code></div>
+        </div>
+        <div class="card" style="margin-top: 18px;">
+          <span class="tag">Live SQLite snapshot</span>
+          <h3>Seeded records behind this page</h3>
+          <p>These names come from the Django view using <code>select_related("author")</code> and <code>prefetch_related("co_authors")</code>.</p>
+          <div class="live-meta"><span>{{ book_count }} books</span><span>{{ author_count }} authors</span><span>SQLite database</span></div>
+          <div class="live-list">
+            {% for book in books %}
+            <div class="live-item"><strong>{{ book.title }}</strong><span>{{ book.author.name }} &middot; {{ book.published_year }}</span></div>
+            {% empty %}
+            <div class="live-item"><strong>No sample data yet</strong><span>Run manage.py seed_sample_data.</span></div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="lab" id="lab">
+      <div class="wrap">
+        <div class="section-heading"><div><span class="eyebrow">Interactive lab</span><h2>Choose a relationship.</h2></div><p>Switch examples to inspect the Django code, query plan, and rendered result for each relationship shape.</p></div>
+        <div class="lab-shell">
+          <div class="tabs" role="tablist" aria-label="Relationship examples">
+            <button class="tab active" role="tab" aria-selected="true" data-example="foreign"><strong>ForeignKey</strong><small>Book -&gt; Author</small></button>
+            <button class="tab" role="tab" aria-selected="false" data-example="one"><strong>OneToOne</strong><small>Author -&gt; Profile</small></button>
+            <button class="tab" role="tab" aria-selected="false" data-example="many"><strong>ManyToMany</strong><small>Book -&gt; co-authors</small></button>
+            <button class="tab" role="tab" aria-selected="false" data-example="reverse"><strong>Reverse relation</strong><small>Author -&gt; books</small></button>
+          </div>
+          <div class="lab-panel" id="lab-panel" role="tabpanel"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="compare">
+      <div class="wrap">
+        <div class="section-heading"><div><span class="eyebrow">Concrete numbers</span><h2>Same output. Fewer trips.</h2></div><p>Imagine rendering the author name for 6 Books. The result is identical, but the database work is not.</p></div>
+        <div class="compare">
+          <article class="card bad"><span class="tag">N+1 / avoid</span><h3>Lazy relationship access</h3><p><code>books = Book.objects.all()</code><br>then <code>book.author.name</code> inside the template loop.</p><div class="metric"><span>Database queries</span><b>7</b></div><div class="bar"><i style="width: 100%"></i></div></article>
+          <article class="card good"><span class="tag">2 queries / prefer</span><h3>Prefetched collection</h3><p><code>books = Book.objects.prefetch_related('author')</code><br>then read the already-loaded author.</p><div class="metric"><span>Database queries</span><b>2</b></div><div class="bar"><i style="width: 29%"></i></div></article>
+        </div>
+        <div class="callout"><strong>Rule of thumb:</strong> <code>select_related</code> uses SQL JOINs for a single related object. <code>prefetch_related</code> runs a separate query and joins results in Python, which supports many-to-many and reverse relationships.</div>
+      </div>
+    </section>
+  </main>
+
+  <footer><div class="wrap">Built around a live SQLite schema: <code>Book</code>, <code>Author</code>, and <code>AuthorProfile</code>. The interactive lab runs in the browser; the snapshot above is served by Django.</div></footer>
+
+  <script>
+    const examples = {
+      foreign: {
+        label: 'ForeignKey', title: 'Render each Book with its Author',
+        description: 'A Book has one Author. Join the related row while fetching Books so the loop does not wake the database repeatedly.',
+        count: '2', countLabel: 'queries',
+        code: `<span class="kw">books</span> = Book.objects.<span class="fn">select_related</span>(<span class="str">"author"</span>)\n\n<span class="kw">for</span> book <span class="kw">in</span> books:\n    <span class="fn">print</span>(book.title, <span class="str">"by"</span>, book.author.name)`,
+        queries: ['SELECT books + authors with an INNER JOIN', 'No extra query when book.author is read'],
+        results: [['The Left Hand of Darkness', 'Ursula K. Le Guin'], ['Kindred', 'Octavia E. Butler'], ['Piranesi', 'Susanna Clarke'], ['The Dispossessed', 'Ursula K. Le Guin']]
+      },
+      one: {
+        label: 'OneToOne', title: 'Read each Author profile',
+        description: 'A Profile has exactly one Author. It has the same single-object shape as a ForeignKey, so select_related works here too.',
+        count: '2', countLabel: 'queries',
+        code: `<span class="kw">authors</span> = Author.objects.<span class="fn">select_related</span>(<span class="str">"profile"</span>)\n\n<span class="kw">for</span> author <span class="kw">in</span> authors:\n    <span class="fn">print</span>(author.name, author.profile.website)`,
+        queries: ['SELECT authors + profiles with a LEFT OUTER JOIN', 'No extra query when author.profile is read'],
+        results: [['Ursula K. Le Guin', 'ursulakleguin.com'], ['Octavia E. Butler', 'octaviabutler.com'], ['Susanna Clarke', 'susannaclarke.co.uk']]
+      },
+      many: {
+        label: 'ManyToMany', title: 'Render every Book co-author',
+        description: 'A Book can have zero or many co-authors. Prefetch the collection in a second query, then Django matches the rows in memory.',
+        count: '2', countLabel: 'queries',
+        code: `<span class="kw">books</span> = Book.objects.<span class="fn">prefetch_related</span>(<span class="str">"co_authors"</span>)\n\n<span class="kw">for</span> book <span class="kw">in</span> books:\n    <span class="kw">for</span> author <span class="kw">in</span> book.co_authors.<span class="fn">all</span>():\n        <span class="fn">print</span>(book.title, author.name)`,
+        queries: ['SELECT all matching Books', 'SELECT co_authors through the join table WHERE book_id IN (...)'],
+        results: [['Good Omens', 'Neil Gaiman + Terry Pratchett'], ['The City & The City', 'China Mieville'], ['This Is How You Lose the Time War', 'Amal El-Mohtar + Max Gladstone']]
+      },
+      reverse: {
+        label: 'Reverse relation', title: 'List every Book by an Author',
+        description: 'The reverse side of a ForeignKey can return many Books. Prefetch it when you start from Authors and loop over author.books.',
+        count: '2', countLabel: 'queries',
+        code: `<span class="kw">authors</span> = Author.objects.<span class="fn">prefetch_related</span>(<span class="str">"books"</span>)\n\n<span class="kw">for</span> author <span class="kw">in</span> authors:\n    titles = [book.title <span class="kw">for</span> book <span class="kw">in</span> author.books.<span class="fn">all</span>()]\n    <span class="fn">print</span>(author.name, titles)`,
+        queries: ['SELECT all Authors', 'SELECT Books WHERE author_id IN (...)'],
+        results: [['Ursula K. Le Guin', 'The Left Hand of Darkness, The Dispossessed'], ['Octavia E. Butler', 'Kindred, Parable of the Sower'], ['Susanna Clarke', 'Piranesi, Jonathan Strange & Mr Norrell']]
+      }
+    };
+
+    const panel = document.querySelector('#lab-panel');
+    const tabs = document.querySelectorAll('.tab');
+    function renderExample(key) {
+      const example = examples[key];
+      panel.innerHTML = `<span class="panel-label">${example.label}</span><h3>${example.title}</h3><p>${example.description}</p><pre class="code"><code>${example.code}</code></pre><div class="query-row"><span><strong>Query plan</strong><br><small>${example.queries.join(' + ')}</small></span><span class="query-count">${example.count}<small> ${example.countLabel}</small></span></div><div class="results">${example.results.map(row => `<div class="result"><strong>${row[0]}</strong><span>${row[1]}</span></div>`).join('')}</div>`;
+      tabs.forEach(tab => { const active = tab.dataset.example === key; tab.classList.toggle('active', active); tab.setAttribute('aria-selected', active); });
+    }
+    tabs.forEach(tab => tab.addEventListener('click', () => renderExample(tab.dataset.example)));
+    renderExample('foreign');
+  </script>
+</body>
+</html>
