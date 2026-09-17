@@ -1,9 +1,10 @@
+import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = "django-insecure-n1-query-learning-project"
-DEBUG = True
-ALLOWED_HOSTS = ["127.0.0.1", "localhost", "testserver"]
+SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-n1-query-learning-project")
+DEBUG = os.environ.get("DEBUG", "True").lower() in ("true", "1", "t")
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",") if os.environ.get("ALLOWED_HOSTS") else ["*"]
 
 INSTALLED_APPS = [
     "jazzmin",

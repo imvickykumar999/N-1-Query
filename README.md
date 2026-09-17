@@ -19,5 +19,23 @@ Open http://127.0.0.1:8000/ for the interactive guide. The live JSON endpoint is
 - `Author.profile` is a `OneToOneField`, demonstrated with `select_related("profile")`.
 - `Book.co_authors` is a `ManyToManyField`, demonstrated with `prefetch_related("co_authors")`.
 - `Author.books` is the reverse `ForeignKey` relationship, demonstrated with `prefetch_related("books")`.
+## Run with Docker
+
+You can run the pre-built image directly from Docker Hub:
+
+```bash
+docker run -d -p 8000:8000 --name n1query-lab imvickykumar999/n-1-query:latest
+```
+
+Or build and run locally:
+
+```bash
+docker build -t n-1-query .
+docker run -d -p 8000:8000 --name n1query-lab n-1-query
+```
+
+Open [http://localhost:8000/](http://localhost:8000/) in your browser.
+
 # N-1-Query
 The N+1 query problem happens when accessing related objects in a loop triggers a separate database query for every row.
+
