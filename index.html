@@ -108,6 +108,15 @@
     .query-row { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin-top: 17px; padding: 13px 15px; border-left: 4px solid var(--orange); background: #fffaf0; }
     .query-count { color: var(--orange); font: 700 22px var(--mono); white-space: nowrap; }
     .query-count small { color: var(--muted); font: 11px var(--sans); }
+    .console-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 18px; }
+    .run-button { padding: 9px 13px; color: #fff; background: var(--green); border: 0; border-radius: 5px; cursor: pointer; font-weight: 700; }
+    .run-button:hover { background: #1e573d; }
+    .run-button:disabled { cursor: wait; opacity: .65; }
+    .console-label { color: var(--muted); font: 700 11px var(--mono); letter-spacing: .07em; text-transform: uppercase; }
+    .console { min-height: 58px; margin-top: 10px; padding: 14px; overflow: auto; color: #dceadd; background: #17211b; border-radius: 7px; font: 12px/1.65 var(--mono); white-space: pre-wrap; }
+    .console .prompt { color: var(--yellow); }
+    .console .success { color: #91d6a9; }
+    .console .error { color: #f4a17b; }
     .results { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 18px; }
     .result { padding: 11px 13px; border: 1px solid var(--line); background: white; border-radius: 5px; font-size: 13px; }
     .result span { display: block; color: var(--muted); font-size: 11px; }
@@ -169,7 +178,7 @@
         <h1>Make every relationship count.</h1>
         <p class="hero-copy">The N+1 query problem hides inside ordinary Python loops. See exactly when Django hits the database, then choose the right loading strategy for Books, Authors, and every relationship around them.</p>
         <div class="hero-actions"><a class="button" href="#lab">Open the query lab <span aria-hidden="true">-&gt;</span></a><a class="button secondary" href="#mental-model">Learn the mental model</a></div>
-        <div class="hero-note"><span class="pulse"></span> Database traffic is simulated below. The Python examples are ready to paste into a Django view.</div>
+        <div class="hero-note"><span class="pulse"></span> Run each lesson below against the live SQLite database. The console prints real Django ORM output.</div>
       </div>
     </section>
 
@@ -234,7 +243,7 @@
       foreign: {
         label: 'ForeignKey', title: 'Render each Book with its Author',
         description: 'A Book has one Author. Join the related row while fetching Books so the loop does not wake the database repeatedly.',
-        count: '2', countLabel: 'queries',
+        count: '1', countLabel: 'query',
         code: `<span class="kw">books</span> = Book.objects.<span class="fn">select_related</span>(<span class="str">"author"</span>)\n\n<span class="kw">for</span> book <span class="kw">in</span> books:\n    <span class="fn">print</span>(book.title, <span class="str">"by"</span>, book.author.name)`,
         queries: ['SELECT books + authors with an INNER JOIN', 'No extra query when book.author is read'],
         results: [['The Left Hand of Darkness', 'Ursula K. Le Guin'], ['Kindred', 'Octavia E. Butler'], ['Piranesi', 'Susanna Clarke'], ['The Dispossessed', 'Ursula K. Le Guin']]
@@ -242,7 +251,7 @@
       one: {
         label: 'OneToOne', title: 'Read each Author profile',
         description: 'A Profile has exactly one Author. It has the same single-object shape as a ForeignKey, so select_related works here too.',
-        count: '2', countLabel: 'queries',
+        count: '1', countLabel: 'query',
         code: `<span class="kw">authors</span> = Author.objects.<span class="fn">select_related</span>(<span class="str">"profile"</span>)\n\n<span class="kw">for</span> author <span class="kw">in</span> authors:\n    <span class="fn">print</span>(author.name, author.profile.website)`,
         queries: ['SELECT authors + profiles with a LEFT OUTER JOIN', 'No extra query when author.profile is read'],
         results: [['Ursula K. Le Guin', 'ursulakleguin.com'], ['Octavia E. Butler', 'octaviabutler.com'], ['Susanna Clarke', 'susannaclarke.co.uk']]
@@ -269,8 +278,25 @@
     const tabs = document.querySelectorAll('.tab');
     function renderExample(key) {
       const example = examples[key];
-      panel.innerHTML = `<span class="panel-label">${example.label}</span><h3>${example.title}</h3><p>${example.description}</p><pre class="code"><code>${example.code}</code></pre><div class="query-row"><span><strong>Query plan</strong><br><small>${example.queries.join(' + ')}</small></span><span class="query-count">${example.count}<small> ${example.countLabel}</small></span></div><div class="results">${example.results.map(row => `<div class="result"><strong>${row[0]}</strong><span>${row[1]}</span></div>`).join('')}</div>`;
+      panel.innerHTML = `<span class="panel-label">${example.label}</span><h3>${example.title}</h3><p>${example.description}</p><pre class="code"><code>${example.code}</code></pre><div class="query-row"><span><strong>Expected query plan</strong><br><small>${example.queries.join(' + ')}</small></span><span class="query-count">${example.count}<small> ${example.countLabel}</small></span></div><div class="console-actions"><span class="console-label">Live Django console</span><button class="run-button" type="button">Run against SQLite</button></div><div class="console" aria-live="polite"><span class="prompt">$</span> Ready. Click Run against SQLite.</div><div class="results">${example.results.map(row => `<div class="result"><strong>${row[0]}</strong><span>${row[1]}</span></div>`).join('')}</div>`;
+      panel.querySelector('.run-button').addEventListener('click', () => runExample(key));
       tabs.forEach(tab => { const active = tab.dataset.example === key; tab.classList.toggle('active', active); tab.setAttribute('aria-selected', active); });
+    }
+    async function runExample(key) {
+      const button = panel.querySelector('.run-button');
+      const consoleOutput = panel.querySelector('.console');
+      button.disabled = true;
+      consoleOutput.innerHTML = '<span class="prompt">$</span> Running Django ORM query...';
+      try {
+        const response = await fetch(`/api/run-query/?example=${encodeURIComponent(key)}`);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'The query could not run.');
+        consoleOutput.innerHTML = `<span class="prompt">$</span> ${data.strategy}\n<span class="success">OK - ${data.queries_used} database queries\n\n${data.rows.join('\n')}</span>`;
+      } catch (error) {
+        consoleOutput.innerHTML = `<span class="prompt">$</span> <span class="error">ERROR - ${error.message}</span>`;
+      } finally {
+        button.disabled = false;
+      }
     }
     tabs.forEach(tab => tab.addEventListener('click', () => renderExample(tab.dataset.example)));
     renderExample('foreign');
