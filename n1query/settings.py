@@ -6,6 +6,7 @@ DEBUG = True
 ALLOWED_HOSTS = ["127.0.0.1", "localhost", "testserver"]
 
 INSTALLED_APPS = [
+    "jazzmin",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -14,6 +15,22 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "core.apps.CoreConfig",
 ]
+
+JAZZMIN_SETTINGS = {
+    "site_title": "N+1 Query Lab Admin",
+    "site_header": "N+1 Query Lab",
+    "site_brand": "N+1 Query Lab",
+    "welcome_sign": "Manage your Books and Authors",
+    "copyright": "N+1 Query Lab",
+    "show_sidebar": True,
+    "navigation_expanded": True,
+    "icons": {
+        "core.Author": "fas fa-user-pen",
+        "core.AuthorProfile": "fas fa-id-card",
+        "core.Book": "fas fa-book-open",
+        "auth": "fas fa-users",
+    },
+}
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
