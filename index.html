@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+{% load static %}
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -127,6 +128,23 @@
     .live-meta { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 16px; }
     .live-meta span { padding: 5px 9px; color: var(--green); background: var(--green-soft); border-radius: 4px; font: 700 12px var(--mono); }
 
+    .tutorials { background: #e8eee8; }
+    .media-grid { width: min(100%, 960px); margin: 0 auto; }
+    .media-card { min-width: 0; overflow: hidden; padding: 0; border: 1px solid #c5cec5; border-radius: 12px; background: var(--panel); box-shadow: 0 24px 60px rgba(32, 36, 33, .14); }
+    .media-frame { position: relative; padding: 10px; background: #17211b; }
+    .media-frame::before { content: "LIVE LESSON"; position: absolute; z-index: 1; top: 22px; left: 22px; padding: 5px 8px; color: #f7f3e9; background: rgba(32, 43, 37, .86); border: 1px solid rgba(255, 255, 255, .18); border-radius: 4px; font: 700 10px var(--mono); letter-spacing: .1em; }
+    .media-frame video { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: #101612; border-radius: 5px; }
+    .media-body { max-width: 780px; margin: 0 auto; padding: 26px 30px 30px; }
+    .media-body h3 { margin: 8px 0 9px; font: 700 clamp(25px, 3vw, 34px) var(--display); letter-spacing: -.02em; }
+    .media-body p { max-width: 680px; margin: 0; color: var(--muted); font-size: 15px; }
+    .media-kicker { color: var(--orange); font: 700 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+    .media-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 18px; color: var(--muted); font-size: 12px; }
+    .media-meta span { padding: 4px 8px; border: 1px solid var(--line); border-radius: 4px; }
+    .media-actions { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 20px; }
+    .media-actions .button { padding: 9px 12px; font-size: 13px; }
+    .media-actions .button.secondary { background: transparent; }
+    .media-note { width: min(100%, 960px); margin: 18px auto 0; color: var(--muted); font-size: 13px; text-align: center; }
+
     .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .compare .card { box-shadow: none; }
     .compare .good { border-top: 4px solid var(--green); }
@@ -160,6 +178,10 @@
       .arrow { text-align: center; transform: rotate(90deg); }
       .lab-panel { padding: 20px; }
       .results, .live-list { grid-template-columns: 1fr; }
+      .media-frame { padding: 5px; }
+      .media-frame::before { top: 16px; left: 16px; font-size: 9px; }
+      .media-body { padding: 22px 20px 24px; }
+      .media-note { text-align: left; }
     }
   </style>
 </head>
@@ -167,7 +189,7 @@
   <header class="topbar">
     <div class="wrap topbar-inner">
       <a class="brand" href="#top"><span class="brand-mark">ORM</span> N+1 Query Lab</a>
-      <nav aria-label="Main navigation"><a href="#mental-model">Mental model</a><a href="#lab">Interactive lab</a><a href="#compare">Compare</a></nav>
+      <nav aria-label="Main navigation"><a href="#tutorials">Tutorials</a><a href="#mental-model">Mental model</a><a href="#lab">Interactive lab</a><a href="#compare">Compare</a></nav>
     </div>
   </header>
 
@@ -179,6 +201,30 @@
         <p class="hero-copy">The N+1 query problem hides inside ordinary Python loops. See exactly when Django hits the database, then choose the right loading strategy for Books, Authors, and every relationship around them.</p>
         <div class="hero-actions"><a class="button" href="#lab">Open the query lab <span aria-hidden="true">-&gt;</span></a><a class="button secondary" href="#mental-model">Learn the mental model</a></div>
         <div class="hero-note"><span class="pulse"></span> Run each lesson below against the live SQLite database. The console prints real Django ORM output.</div>
+      </div>
+    </section>
+
+    <section class="tutorials" id="tutorials">
+      <div class="wrap">
+        <div class="section-heading"><div><span class="eyebrow">Watch and learn</span><h2>See the problem in action.</h2></div><p>Follow the short walkthrough, then use the interactive ORM lab below to run each relationship example against SQLite.</p></div>
+        <div class="media-grid">
+          <article class="media-card">
+            <div class="media-frame">
+              <video controls preload="metadata" poster="" aria-label="Django N plus one query problem tutorial">
+                <source src="{% static 'Django_N1_Query_Problem.mp4' %}" type="video/mp4">
+                Your browser does not support embedded video. Use the download button below.
+              </video>
+            </div>
+            <div class="media-body">
+              <span class="media-kicker">Video tutorial /  MP4</span>
+              <h3>Understand the N+1 query problem</h3>
+              <p>See how a harmless-looking relationship access inside a loop creates extra database trips, and where eager loading changes the query plan.</p>
+              <div class="media-meta"><span>Beginner friendly</span><span>Django ORM</span><span>Watch in browser</span></div>
+              <div class="media-actions"><a class="button" href="{% static 'Django_N1_Query_Problem.mp4' %}" download>Download video</a><a class="button secondary" href="{% static 'Django_N1_Query_Problem.mp4' %}" target="_blank" rel="noopener">Open full screen</a></div>
+            </div>
+          </article>
+        </div>
+        <p class="media-note">The video is served from Django’s static directory and can be watched in the browser or downloaded for offline study.</p>
       </div>
     </section>
 
